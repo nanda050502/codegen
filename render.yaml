@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ai-code-generator-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /docs
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
