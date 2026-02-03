@@ -25,12 +25,9 @@ class GroqService:
             try:
                 self.client = Groq(api_key=self.api_key)
             except Exception as e:
-            client = self._get_client()
-            if client:
-                # Groq doesn't list models, but we can test connectivity
-                client.models.list()
-                return True, ["mixtral-8x7b-32768", "mistral-7b-instant"]
-            return False, [
+                print(f"❌ Failed to initialize Groq client: {e}")
+                return None
+        return self.client
 
     def check_availability(self) -> Tuple[bool, List[str]]:
         """Check if Groq API is reachable"""
@@ -38,9 +35,12 @@ class GroqService:
             return False, []
 
         try:
-            # Groq doesn't list models, but we can test connectivity
-            self.client.models.list()
-            return True, ["mixtral-8x7b-32768", "mistral-7b-instant"]
+            client = self._get_client()
+            if client:
+                # Groq doesn't list models, but we can test connectivity
+                client.models.list()
+                return True, ["mixtral-8x7b-32768", "mistral-7b-instant"]
+            return False, []
         except Exception as e:
             print(f"❌ Groq check error: {e}")
             return False, []
@@ -95,7 +95,10 @@ class GroqService:
             f"You are an expert {language} developer. Generate clean, well-documented code."
         )
 
-        try:client = self._get_client()
+        try:
+            print(f"🔄 Generating code with {model}...")
+
+            client = self._get_client()
             if not client:
                 return {
                     "success": False,
@@ -106,10 +109,7 @@ class GroqService:
                     "error": "Failed to initialize Groq client"
                 }
 
-            response = 
-            print(f"🔄 Generating code with {model}...")
-
-            response = self.client.chat.completions.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {
@@ -204,12 +204,7 @@ class GroqService:
 
         # If extraction resulted in very short code, return raw output
         if not final_code or len(final_code) < 10:
-            client = self._get_client()
-            if not client:
-                yield {"type": "error", "content": "Failed to initialize Groq client"}
-                return
-
-            stream = put.strip()
+            return raw_output.strip()
 
         return final_code
 
@@ -223,7 +218,12 @@ class GroqService:
             model = self.select_best_model()
 
         try:
-            stream = self.client.chat.completions.create(
+            client = self._get_client()
+            if not client:
+                yield {"type": "error", "content": "Failed to initialize Groq client"}
+                return
+
+            stream = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "user", "content": f"Generate {language} code for: {prompt}"}
