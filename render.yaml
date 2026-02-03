@@ -6,9 +6,7 @@ services:
     plan: free
     healthCheckPath: /docs
     envVars:
-      - key: OPENAI_API_KEY
+      - key: GROQ_API_KEY
         sync: false
-      - key: OPENAI_MODEL
-        value: gpt-4o-mini
       - key: PYTHON_VERSION
         value: 3.11

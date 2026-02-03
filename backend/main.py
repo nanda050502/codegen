@@ -14,7 +14,7 @@ import asyncio
 import json
 
 from backend.database.connection import get_db, init_database, get_database_stats
-from backend.services.openai_service import openai_service
+from backend.services.groq_service import groq_service
 from backend.learning.feedback_engine import FeedbackLearningEngine, run_learning_cycle
 from backend.models.database_models import (
     Prompt, ModelOutput, Feedback, UserProfile, LearningPattern
@@ -140,16 +140,16 @@ async def startup_event():
     # Initialize database
     init_database()
     
-    # Check OpenAI
-    is_available, models = openai_service.check_availability()
+    # Check Groq
+    is_available, models = groq_service.check_availability()
     if is_available:
-        print(f"\n✅ OpenAI API is available!")
+        print(f"\n✅ Groq API is available!")
         if models:
             print(f"📋 Available models: {', '.join(models)}")
-        best_model = openai_service.select_best_model()
+        best_model = groq_service.select_best_model()
         print(f"🎯 Selected model: {best_model}")
     else:
-        print("\n⚠️ OpenAI API is not available! Check OPENAI_API_KEY.")
+        print("\n⚠️ Groq API is not available! Check GROQ_API_KEY.")
     
     print("\n✅ API Server Ready!")
     print("📡 Swagger Docs: http://localhost:8000/docs")
@@ -174,10 +174,10 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    is_available, models = openai_service.check_availability()
+    is_available, models = groq_service.check_availability()
     return {
         "status": "healthy",
-        "openai_available": is_available,
+        "groq_available": is_available,
         "models_available": models,
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -215,8 +215,8 @@ async def generate_code(
     db.commit()
     db.refresh(prompt_record)
     
-    # Generate code using OpenAI GPT
-    result = openai_service.generate_code(
+    # Generate code using Groq Mistral
+    result = groq_service.generate_code(
         prompt=request.prompt,
         language=request.language,
         temperature=request.temperature,
@@ -395,7 +395,7 @@ async def websocket_generate(websocket: WebSocket):
             language = data.get('language', 'python')
             
             # Stream generation
-            for chunk in openai_service.stream_generate(prompt, language):
+            for chunk in groq_service.stream_generate(prompt, language):
                 await websocket.send_json(chunk)
                 await asyncio.sleep(0.01)  # Small delay for smooth streaming
     

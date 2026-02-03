@@ -159,7 +159,7 @@ function App() {
             {/* Header */}
             <div className="header">
                 <h1>🚀 AI Code Generator</h1>
-                <p>Generate code in multiple languages using OpenAI GPT</p>
+                <p>Generate code in multiple languages using Groq Mistral</p>
             </div>
             
             {/* Status Bar */}
