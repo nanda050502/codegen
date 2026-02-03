@@ -4,12 +4,14 @@ Main API endpoints for code generation, feedback, and statistics
 """
 
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 import asyncio
+import json
 
 from backend.database.connection import get_db, init_database, get_database_stats
 from backend.services.openai_service import openai_service
@@ -28,7 +30,14 @@ app = FastAPI(
 # CORS middleware for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify frontend URL
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "https://codegen-vjbr.onrender.com",
+        "https://69816d57c81e3df9c451688f--resplendent-sfogliatella-0e32a7.netlify.app",
+        "https://resplendent-sfogliatella-0e32a7.netlify.app",
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -150,12 +159,16 @@ async def startup_event():
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {
+    payload = {
         "message": "AI Code Generator API",
         "version": "1.0.0",
         "docs": "/docs",
         "status": "online"
     }
+    return Response(
+        content=json.dumps(payload, indent=2),
+        media_type="application/json"
+    )
 
 
 @app.get("/health")
