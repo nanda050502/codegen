@@ -16,7 +16,7 @@ class GroqService:
 
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
-        self.default_model = "mixtral-8x7b-32768"  # Fast Mistral variant on Groq
+        self.default_model = "mistral-7b-instant"  # Supported Mistral model on Groq
         self.client = None  # Lazy load client
     
     def _get_client(self):
@@ -39,7 +39,7 @@ class GroqService:
             if client:
                 # Groq doesn't list models, but we can test connectivity
                 client.models.list()
-                return True, ["mixtral-8x7b-32768", "mistral-7b-instant"]
+                return True, ["mistral-7b-instant"]
             return False, []
         except Exception as e:
             print(f"❌ Groq check error: {e}")
