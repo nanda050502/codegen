@@ -16,8 +16,9 @@ class GroqService:
 
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
-        self.default_model = "mistral-7b-instant"  # Supported Mistral model on Groq
+        self.default_model = os.getenv("GROQ_MODEL")
         self.client = None  # Lazy load client
+        self.available_models: List[str] = []
     
     def _get_client(self):
         """Lazy load Groq client"""
@@ -37,9 +38,10 @@ class GroqService:
         try:
             client = self._get_client()
             if client:
-                # Groq doesn't list models, but we can test connectivity
-                client.models.list()
-                return True, ["mistral-7b-instant"]
+                # Get available models for this key
+                models = client.models.list()
+                self.available_models = [m.id for m in models.data]
+                return True, self.available_models
             return False, []
         except Exception as e:
             print(f"❌ Groq check error: {e}")
@@ -47,7 +49,27 @@ class GroqService:
 
     def select_best_model(self) -> Optional[str]:
         """Select the best available model for code generation"""
-        return self.default_model
+        # If user explicitly set a model, respect it
+        if self.default_model:
+            return self.default_model
+
+        # Prefer Mistral/Mixtral if available, otherwise fallback
+        preferred = [
+            "mistral",
+            "mixtral",
+            "llama",
+        ]
+
+        for pref in preferred:
+            for model in self.available_models:
+                if pref in model.lower():
+                    return model
+
+        if self.available_models:
+            return self.available_models[0]
+
+        # Fallback if models list is unavailable
+        return "llama-3.1-8b-instant"
 
     def generate_code(
         self,
@@ -74,6 +96,9 @@ class GroqService:
                 "model": None,
                 "error": "GROQ_API_KEY is not set"
             }
+
+        if not self.available_models:
+            self.check_availability()
 
         if model is None:
             model = self.select_best_model()
@@ -146,7 +171,50 @@ class GroqService:
             end_time = time.time()
             time_ms = int((end_time - start_time) * 1000)
 
-            print(f"❌ Error during generation: {e}")
+            error_str = str(e)
+            print(f"❌ Error during generation: {error_str}")
+
+            # Retry with another available model if the selected one is not found
+            if "model_not_found" in error_str or "model" in error_str.lower():
+                fallback = next(
+                    (m for m in self.available_models if m != model),
+                    None
+                )
+                if fallback:
+                    try:
+                        response = client.chat.completions.create(
+                            model=fallback,
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": f"{system_prompt}\n\nIMPORTANT: Return ONLY the code. No explanations, no markdown formatting, no instructions. Just the raw code."
+                                },
+                                {
+                                    "role": "user",
+                                    "content": f"Generate {language} code for: {prompt}\n\nReturn ONLY the code itself. No text before or after."
+                                }
+                            ],
+                            temperature=temperature,
+                            max_tokens=max_tokens
+                        )
+
+                        raw_output = response.choices[0].message.content or ""
+                        clean_code = self._extract_clean_code(raw_output, language)
+
+                        end_time = time.time()
+                        time_ms = int((end_time - start_time) * 1000)
+
+                        return {
+                            "success": True,
+                            "code": clean_code,
+                            "raw_output": raw_output,
+                            "time_ms": time_ms,
+                            "model": fallback,
+                            "error": None
+                        }
+                    except Exception as retry_error:
+                        error_str = str(retry_error)
+                        print(f"❌ Retry failed: {error_str}")
 
             return {
                 "success": False,
@@ -154,7 +222,7 @@ class GroqService:
                 "raw_output": "",
                 "time_ms": time_ms,
                 "model": model,
-                "error": str(e)
+                "error": error_str
             }
 
     def _extract_clean_code(self, raw_output: str, language: str) -> str:
