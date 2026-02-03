@@ -1,6 +1,8 @@
 const { useState, useEffect } = React;
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL)
+    ? window.APP_CONFIG.API_BASE_URL
+    : 'http://localhost:8000';
 
 function App() {
     const [prompt, setPrompt] = useState('');
@@ -157,7 +159,7 @@ function App() {
             {/* Header */}
             <div className="header">
                 <h1>🚀 AI Code Generator</h1>
-                <p>Generate code in multiple languages using local Ollama Mistral model</p>
+                <p>Generate code in multiple languages using OpenAI GPT</p>
             </div>
             
             {/* Status Bar */}
