@@ -17,7 +17,20 @@ class GroqService:
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
         self.default_model = "mixtral-8x7b-32768"  # Fast Mistral variant on Groq
-        self.client = Groq(api_key=self.api_key) if self.api_key else None
+        self.client = None  # Lazy load client
+    
+    def _get_client(self):
+        """Lazy load Groq client"""
+        if self.client is None and self.api_key:
+            try:
+                self.client = Groq(api_key=self.api_key)
+            except Exception as e:
+            client = self._get_client()
+            if client:
+                # Groq doesn't list models, but we can test connectivity
+                client.models.list()
+                return True, ["mixtral-8x7b-32768", "mistral-7b-instant"]
+            return False, [
 
     def check_availability(self) -> Tuple[bool, List[str]]:
         """Check if Groq API is reachable"""
@@ -82,7 +95,18 @@ class GroqService:
             f"You are an expert {language} developer. Generate clean, well-documented code."
         )
 
-        try:
+        try:client = self._get_client()
+            if not client:
+                return {
+                    "success": False,
+                    "code": "",
+                    "raw_output": "",
+                    "time_ms": 0,
+                    "model": None,
+                    "error": "Failed to initialize Groq client"
+                }
+
+            response = 
             print(f"🔄 Generating code with {model}...")
 
             response = self.client.chat.completions.create(
@@ -180,7 +204,12 @@ class GroqService:
 
         # If extraction resulted in very short code, return raw output
         if not final_code or len(final_code) < 10:
-            return raw_output.strip()
+            client = self._get_client()
+            if not client:
+                yield {"type": "error", "content": "Failed to initialize Groq client"}
+                return
+
+            stream = put.strip()
 
         return final_code
 
