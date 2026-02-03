@@ -12,7 +12,7 @@ from datetime import datetime
 import asyncio
 
 from backend.database.connection import get_db, init_database, get_database_stats
-from backend.services.ollama_service import ollama_service
+from backend.services.openai_service import openai_service
 from backend.learning.feedback_engine import FeedbackLearningEngine, run_learning_cycle
 from backend.models.database_models import (
     Prompt, ModelOutput, Feedback, UserProfile, LearningPattern
@@ -123,7 +123,7 @@ def detect_language_from_prompt(prompt: str) -> str:
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database and check Ollama on startup"""
+    """Initialize database and check OpenAI on startup"""
     print("\n" + "="*60)
     print("🚀 STARTING AI CODE GENERATOR API")
     print("="*60)
@@ -131,15 +131,16 @@ async def startup_event():
     # Initialize database
     init_database()
     
-    # Check Ollama
-    is_available, models = ollama_service.check_availability()
+    # Check OpenAI
+    is_available, models = openai_service.check_availability()
     if is_available:
-        print(f"\n✅ Ollama is running!")
-        print(f"📋 Available models: {', '.join(models)}")
-        best_model = ollama_service.select_best_model()
+        print(f"\n✅ OpenAI API is available!")
+        if models:
+            print(f"📋 Available models: {', '.join(models)}")
+        best_model = openai_service.select_best_model()
         print(f"🎯 Selected model: {best_model}")
     else:
-        print("\n⚠️ Ollama is not running! Please start Ollama service.")
+        print("\n⚠️ OpenAI API is not available! Check OPENAI_API_KEY.")
     
     print("\n✅ API Server Ready!")
     print("📡 Swagger Docs: http://localhost:8000/docs")
@@ -160,10 +161,10 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    is_available, models = ollama_service.check_availability()
+    is_available, models = openai_service.check_availability()
     return {
         "status": "healthy",
-        "ollama_available": is_available,
+        "openai_available": is_available,
         "models_available": models,
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -201,8 +202,8 @@ async def generate_code(
     db.commit()
     db.refresh(prompt_record)
     
-    # Generate code using Ollama
-    result = ollama_service.generate_code(
+    # Generate code using OpenAI GPT
+    result = openai_service.generate_code(
         prompt=request.prompt,
         language=request.language,
         temperature=request.temperature,
@@ -381,7 +382,7 @@ async def websocket_generate(websocket: WebSocket):
             language = data.get('language', 'python')
             
             # Stream generation
-            for chunk in ollama_service.stream_generate(prompt, language):
+            for chunk in openai_service.stream_generate(prompt, language):
                 await websocket.send_json(chunk)
                 await asyncio.sleep(0.01)  # Small delay for smooth streaming
     
